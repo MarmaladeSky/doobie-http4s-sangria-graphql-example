@@ -4,7 +4,7 @@
 
 package demo.schema
 
-import cats.effect.Effect
+import cats.effect.std.Dispatcher
 import demo.model._
 import demo.repo._
 import sangria.execution.deferred.Deferred
@@ -16,7 +16,7 @@ object LanguageType {
     case class ByCountryCode(code: String) extends Deferred[List[Language]]
   }
 
-  def apply[F[_]: Effect]: ObjectType[MasterRepo[F], Language] =
+  def apply[F[_]: Dispatcher]: ObjectType[MasterRepo[F], Language] =
     ObjectType(
       name     = "Language",
       fieldsFn = () => fields(

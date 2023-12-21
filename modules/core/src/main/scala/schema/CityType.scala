@@ -4,14 +4,14 @@
 
 package demo.schema
 
-import cats.effect.Effect
+import cats.effect.std.Dispatcher
 import demo.model._
 import demo.repo._
 import sangria.schema._
 
 object CityType {
 
-  def apply[F[_]: Effect]: ObjectType[MasterRepo[F], City] =
+  def apply[F[_]: Dispatcher]: ObjectType[MasterRepo[F], City] =
     ObjectType(
       name     = "City",
       fieldsFn = () => fields(

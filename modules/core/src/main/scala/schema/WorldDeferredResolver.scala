@@ -6,9 +6,11 @@ package demo.schema
 
 import cats.effect._
 import cats.effect.implicits._
+import cats.effect.std.Dispatcher
 import cats.implicits._
 import demo.repo._
-import sangria.execution.deferred.{ Deferred, DeferredResolver }
+import sangria.execution.deferred.{Deferred, DeferredResolver}
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent._
 import scala.reflect.ClassTag
@@ -16,7 +18,7 @@ import scala.util.Success
 
 object WorldDeferredResolver {
 
-  def apply[F[_]: Effect]: DeferredResolver[MasterRepo[F]] =
+  def apply[F[_]: Dispatcher]: DeferredResolver[MasterRepo[F]] =
     new DeferredResolver[MasterRepo[F]] {
 
       def resolve(

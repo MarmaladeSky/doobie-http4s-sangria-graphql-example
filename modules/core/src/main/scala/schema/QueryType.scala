@@ -6,6 +6,7 @@ package demo.schema
 
 import cats.effect._
 import cats.effect.implicits._
+import cats.effect.std.Dispatcher
 import demo.repo._
 import sangria.schema._
 
@@ -26,7 +27,7 @@ object QueryType {
       description  = "Unique code of a country."
     )
 
-  def apply[F[_]: Effect]: ObjectType[MasterRepo[F], Unit] =
+  def apply[F[_]: Dispatcher]: ObjectType[MasterRepo[F], Unit] =
     ObjectType(
       name  = "Query",
       fields = fields(
@@ -57,7 +58,7 @@ object QueryType {
       )
     )
 
-  def schema[F[_]: Effect]: Schema[MasterRepo[F], Unit] =
+  def schema[F[_]: Dispatcher]: Schema[MasterRepo[F], Unit] =
     Schema(QueryType[F])
 
 }

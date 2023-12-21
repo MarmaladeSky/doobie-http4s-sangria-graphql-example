@@ -6,6 +6,7 @@ package demo.schema
 
 import cats.effect._
 import cats.effect.implicits._
+import cats.effect.std.Dispatcher
 import demo.model._
 import demo.repo._
 import sangria.execution.deferred.Deferred
@@ -17,7 +18,7 @@ object CountryType {
     final case class ByCode(code: String) extends Deferred[Country]
   }
 
-  def apply[F[_]: Effect]: ObjectType[MasterRepo[F], Country] =
+  def apply[F[_]: Dispatcher]: ObjectType[MasterRepo[F], Country] =
     ObjectType(
       name     = "Country",
       fieldsFn = () => fields(
@@ -109,7 +110,7 @@ object CountryType {
         Field(
           name           = "cities",
           fieldType      = ListType(CityType[F]),
-          resolve        = e => e.ctx.city.fetchByCountryCode(e.value.code).toIO.unsafeToFuture
+          resolve        = e => e.ctx.city.fetchByCountryCode(e.value.code)
         ),
 
         Field(

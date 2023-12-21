@@ -16,34 +16,33 @@ import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import repo._
 import sangria._
 import _root_.sangria.schema._
+import cats.effect.std.Dispatcher
 import org.http4s._
 import org.http4s.dsl._
 import org.http4s.headers.Location
 import org.http4s.implicits._
 import org.http4s.server.Server
 import org.http4s.server.blaze._
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.global
 
 object Main extends IOApp {
 
   // Construct a transactor for connecting to the database.
-  def transactor[F[_]: Async: ContextShift](
-    blocker: Blocker
-  ): Resource[F, HikariTransactor[F]] =
+  def transactor[F[_]: Async](): Resource[F, HikariTransactor[F]] =
     ExecutionContexts.fixedThreadPool[F](10).flatMap { ce =>
       HikariTransactor.newHikariTransactor(
         "org.postgresql.Driver",
         "jdbc:postgresql:world",
         "user",
         "password",
-        ce,
-        blocker
+        ce
       )
     }
 
   // Construct a GraphQL implementation based on our Sangria definitions.
-  def graphQL[F[_]: Effect: ContextShift: Logger](
+  def graphQL[F[_]: Async: Dispatcher: Logger](
     transactor:      Transactor[F],
     blockingContext: ExecutionContext
   ): GraphQL[F] =
@@ -54,43 +53,41 @@ object Main extends IOApp {
       ),
       WorldDeferredResolver[F],
       MasterRepo.fromTransactor(transactor).pure[F],
-      blockingContext
+      Async[F] blockingContext
     )
 
   // Playground or else redirect to playground
-  def playgroundOrElse[F[_]: Sync: ContextShift](
-    blocker: Blocker
-  ): HttpRoutes[F] = {
+  def playgroundOrElse[F[_]: Async](): HttpRoutes[F] = {
     object dsl extends Http4sDsl[F]; import dsl._
     HttpRoutes.of[F] {
 
       case GET -> Root / "playground.html" =>
         StaticFile
-          .fromResource[F]("/assets/playground.html", blocker)
+          .fromResource[F]("/assets/playground.html")
           .getOrElseF(NotFound())
 
       case _ =>
-        PermanentRedirect(Location(Uri.uri("/playground.html")))
+        PermanentRedirect(Location(Uri.unsafeFromString("/playground.html")))
 
     }
   }
 
   // Resource that mounts the given `routes` and starts a server.
-  def server[F[_]: ConcurrentEffect: ContextShift: Timer](
+  def server[F[_]: Async: Clock](
     routes: HttpRoutes[F]
-  ): Resource[F, Server[F]] =
+  ): Resource[F, Server[F]] = {
     BlazeServerBuilder[F](global)
       .bindHttp(8080, "localhost")
       .withHttpApp(routes.orNotFound)
       .resource
+  }
 
   // Resource that constructs our final server.
-  def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
+  def resource[F[_]: Async: Clock](
     implicit L: Logger[F]
   ): Resource[F, Server[F]] =
     for {
-      b   <- Blocker[F]
-      xa  <- transactor[F](b)
+      xa  <- transactor[F]()
       gql  = graphQL[F](xa, b.blockingContext)
       rts  = GraphQLRoutes[F](gql) <+> playgroundOrElse(b)
       svr <- server[F](rts)

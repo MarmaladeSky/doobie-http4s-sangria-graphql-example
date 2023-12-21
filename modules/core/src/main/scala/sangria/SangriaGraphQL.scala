@@ -67,7 +67,6 @@ object SangriaGraphQL {
       schema: Schema[A, Unit],
       deferredResolver: DeferredResolver[A],
       userContext: F[A],
-      blockingExecutionContext: ExecutionContext
     )(
       implicit F: Async[F],
     ): GraphQL[F] =
@@ -103,7 +102,7 @@ object SangriaGraphQL {
           query:         Document,
           operationName: Option[String],
           variables:     JsonObject
-        )(implicit ec: ExecutionContext): F[Either[Json, Json]] =
+        ): F[Either[Json, Json]] =
           userContext.flatMap { ctx =>
             F.async { (cb: Either[Throwable, Json] => Unit) =>
               Executor.execute(
@@ -116,7 +115,7 @@ object SangriaGraphQL {
                 exceptionHandler = ExceptionHandler {
                   case (_, e) ⇒ HandledException(e.getMessage)
                 }
-              ).onComplete {
+              )(scala.concurrent.).onComplete {
                 case Success(value) => cb(Right(value))
                 case Failure(error) => cb(Left(error))
               }
