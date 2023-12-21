@@ -6,6 +6,7 @@ package demo.schema
 
 import cats.effect._
 import cats.effect.implicits._
+import cats.effect.syntax.dispatcher._
 import cats.effect.std.Dispatcher
 import demo.repo._
 import sangria.schema._
@@ -36,7 +37,7 @@ object MutationType {
           fieldType   = OptionType(CountryType[F]),
           description = Some("Update the specified Country, if it exists."),
           arguments   = List(Code, NewName),
-          resolve     = c => c.ctx.country.update(c.arg(Code), c.arg(NewName)).toIO.unsafeToFuture
+          resolve     = c => implicitly[Dispatcher[F]].unsafeToFuture { c.ctx.country.update(c.arg(Code), c.arg(NewName)) }
         ),
 
       )

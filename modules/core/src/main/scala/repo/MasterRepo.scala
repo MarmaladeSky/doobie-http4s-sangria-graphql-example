@@ -6,7 +6,7 @@ package demo.repo
 
 import cats.effect._
 import doobie._
-import io.chrisdavenport.log4cats.Logger
+import org.typelevel.log4cats.Logger
 
 final case class MasterRepo[F[_]](
   city:     CityRepo[F],

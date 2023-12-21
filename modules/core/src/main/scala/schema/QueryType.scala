@@ -37,7 +37,7 @@ object QueryType {
           fieldType   = ListType(CityType[F]),
           description = Some("Returns cities with the given name pattern, if any."),
           arguments   = List(NamePattern),
-          resolve     = c => c.ctx.city.fetchAll(c.argOpt(NamePattern)).toIO.unsafeToFuture
+          resolve     = c => implicitly[Dispatcher[F]].unsafeToFuture { c.ctx.city.fetchAll(c.argOpt(NamePattern)) }
         ),
 
         Field(
@@ -45,14 +45,14 @@ object QueryType {
           fieldType   = OptionType(CountryType[F]),
           description = Some("Returns the country with the given code, if any."),
           arguments   = List(Code),
-          resolve     = c => c.ctx.country.fetchByCode(c.arg(Code)).toIO.unsafeToFuture
+          resolve     = c => implicitly[Dispatcher[F]].unsafeToFuture { c.ctx.country.fetchByCode(c.arg(Code)) }
         ),
 
         Field(
           name        = "countries",
           fieldType   = ListType(CountryType[F]),
           description = Some("Returns all countries."),
-          resolve     = c => c.ctx.country.fetchAll.toIO.unsafeToFuture
+          resolve     = c => implicitly[Dispatcher[F]].unsafeToFuture { c.ctx.country.fetchAll }
         ),
 
       )

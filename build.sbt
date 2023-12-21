@@ -4,13 +4,13 @@ lazy val circeVersion         = "0.14.1"
 lazy val doobieVersion        = "1.0.0-RC5"
 lazy val fs2Version           = "2.3.0"
 lazy val kindProjectorVersion = "0.13.2"
-lazy val log4catsVersion      = "1.0.1"
+lazy val log4catsVersion      = "2.6.0"
 lazy val sangriaCirceVersion  = "1.3.2"
 lazy val sangriaVersion       = "4.0.2"
 lazy val scala13Version       = "2.13.12"
 lazy val http4sVersion        = "0.23.24"
 lazy val http4sBlazeVersion   = "0.23.14"
-lazy val slf4jVersion         = "1.7.30"
+lazy val slf4jVersion         = "2.0.5"
 
 lazy val scalacSettings = Seq(
   scalacOptions ++=
@@ -107,7 +107,7 @@ lazy val core = project
       "org.http4s"           %% "http4s-blaze-server" % http4sBlazeVersion,
       "org.http4s"           %% "http4s-circe"        % http4sVersion,
       "io.circe"             %% "circe-optics"        % circeVersion,
-      "io.chrisdavenport"    %% "log4cats-slf4j"      % log4catsVersion,
-      "org.slf4j"            %  "slf4j-simple"        % slf4jVersion,
+      "org.typelevel"        %% "log4cats-slf4j"      % log4catsVersion,
+      "org.slf4j"            %  "slf4j-simple"        % slf4jVersion
     )
   )

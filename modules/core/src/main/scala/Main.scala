@@ -11,8 +11,8 @@ import demo.schema._
 import doobie._
 import doobie.hikari._
 import doobie.util.ExecutionContexts
-import io.chrisdavenport.log4cats.Logger
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import repo._
 import sangria._
 import _root_.sangria.schema._
@@ -43,8 +43,7 @@ object Main extends IOApp {
 
   // Construct a GraphQL implementation based on our Sangria definitions.
   def graphQL[F[_]: Async: Dispatcher: Logger](
-    transactor:      Transactor[F],
-    blockingContext: ExecutionContext
+    transactor:      Transactor[F]
   ): GraphQL[F] =
     SangriaGraphQL[F](
       Schema(
@@ -52,8 +51,7 @@ object Main extends IOApp {
         mutation = Some(MutationType[F])
       ),
       WorldDeferredResolver[F],
-      MasterRepo.fromTransactor(transactor).pure[F],
-      Async[F] blockingContext
+      MasterRepo.fromTransactor(transactor).pure[F]
     )
 
   // Playground or else redirect to playground
@@ -75,28 +73,33 @@ object Main extends IOApp {
   // Resource that mounts the given `routes` and starts a server.
   def server[F[_]: Async: Clock](
     routes: HttpRoutes[F]
-  ): Resource[F, Server[F]] = {
-    BlazeServerBuilder[F](global)
+  ) = {
+    org.http4s.blaze.server.BlazeServerBuilder
+      .apply[F]
       .bindHttp(8080, "localhost")
       .withHttpApp(routes.orNotFound)
       .resource
   }
 
   // Resource that constructs our final server.
-  def resource[F[_]: Async: Clock](
+  def resource[F[_]: Async: Dispatcher: Clock](
     implicit L: Logger[F]
-  ): Resource[F, Server[F]] =
+  ): Resource[F, Server] =
     for {
       xa  <- transactor[F]()
-      gql  = graphQL[F](xa, b.blockingContext)
-      rts  = GraphQLRoutes[F](gql) <+> playgroundOrElse(b)
+      gql  = graphQL[F](xa)
+      rts  = GraphQLRoutes[F](gql) <+> playgroundOrElse()
       svr <- server[F](rts)
     } yield svr
 
   // Our entry point starts the server and blocks forever.
   def run(args: List[String]): IO[ExitCode] = {
     implicit val log = Slf4jLogger.getLogger[IO]
-    resource[IO].use(_ => IO.never.as(ExitCode.Success))
+    val r = for {
+      d <- Dispatcher.sequential[IO]
+      e <- resource[IO](implicitly[Async[IO]], d, implicitly[Clock[IO]], log)
+    } yield e
+    r.use(_ => IO.never.as(ExitCode.Success))
   }
 
 }

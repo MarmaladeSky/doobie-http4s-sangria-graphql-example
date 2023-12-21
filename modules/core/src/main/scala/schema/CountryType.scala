@@ -4,6 +4,7 @@
 
 package demo.schema
 
+import cats.effect.syntax.all._
 import cats.effect._
 import cats.effect.implicits._
 import cats.effect.std.Dispatcher
@@ -110,7 +111,7 @@ object CountryType {
         Field(
           name           = "cities",
           fieldType      = ListType(CityType[F]),
-          resolve        = e => e.ctx.city.fetchByCountryCode(e.value.code)
+          resolve        = e => implicitly[Dispatcher[F]].unsafeToFuture { e.ctx.city.fetchByCountryCode(e.value.code) }
         ),
 
         Field(

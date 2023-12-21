@@ -18,7 +18,7 @@ import scala.util.Success
 
 object WorldDeferredResolver {
 
-  def apply[F[_]: Dispatcher]: DeferredResolver[MasterRepo[F]] =
+  def apply[F[_]: Async: Dispatcher]: DeferredResolver[MasterRepo[F]] =
     new DeferredResolver[MasterRepo[F]] {
 
       def resolve(
@@ -44,8 +44,9 @@ object WorldDeferredResolver {
           promises.keys.collect { case a: A => a } .toList
 
         // Complete the promise associated with a Deferred
-        def complete[A](d: Deferred[A], a: A): F[Unit] =
-          Effect[F].delay(promises(d).complete(Success(a))).void
+        def complete[A](d: Deferred[A], a: A): F[Unit] = {
+          Async[F].delay { promises(d).complete(Success(a)) }.void
+        }
 
         // Complete a bunch of countries by doing a batch database query
         def completeCountries(codes: List[CountryType.Deferred.ByCode]): F[Unit] =
@@ -62,8 +63,8 @@ object WorldDeferredResolver {
           } yield ()
 
         // WARNING WARNING WARNING
-        completeCountries(select[CountryType.Deferred.ByCode]).toIO.unsafeToFuture
-        completeLanguages(select[LanguageType.Deferred.ByCountryCode]).toIO.unsafeToFuture
+        implicitly[Dispatcher[F]].unsafeToFuture { completeCountries(select[CountryType.Deferred.ByCode]) }
+        implicitly[Dispatcher[F]].unsafeToFuture { completeLanguages(select[LanguageType.Deferred.ByCountryCode]) }
         // Let's hope there are no more cases, who the hell knows. Any orphaned Promises will just
         // wait forever and eventually we'll time out. I assume.
 

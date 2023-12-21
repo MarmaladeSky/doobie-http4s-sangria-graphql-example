@@ -10,7 +10,7 @@ import cats.implicits._
 import doobie._
 import doobie.implicits._
 import demo.model._
-import io.chrisdavenport.log4cats.Logger
+import org.typelevel.log4cats.Logger
 
 trait CountryRepo[F[_]] {
   def fetchByCode(code: String): F[Option[Country]]

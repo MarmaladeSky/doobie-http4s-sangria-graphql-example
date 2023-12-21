@@ -10,15 +10,17 @@ import _root_.sangria.execution._
 import _root_.sangria.execution.deferred._
 import _root_.sangria.execution.WithViolations
 import _root_.sangria.marshalling.circe._
-import _root_.sangria.parser.{ QueryParser, SyntaxError }
+import _root_.sangria.parser.{QueryParser, SyntaxError}
 import _root_.sangria.schema._
 import _root_.sangria.validation._
 import cats.effect._
 import cats.implicits._
-import io.circe.{ Json, JsonObject }
+import io.circe.{Json, JsonObject}
 import io.circe.optics.JsonPath.root
-import scala.concurrent.ExecutionContext
-import scala.util.{ Success, Failure }
+
+import java.util.concurrent.Executors
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 /** A GraphQL implementation based on Sangria. */
 object SangriaGraphQL {
@@ -72,6 +74,8 @@ object SangriaGraphQL {
     ): GraphQL[F] =
       new GraphQL[F] {
 
+        private val blockingEc = ExecutionContext.fromExecutor { Executors.newCachedThreadPool() }
+
         // Destructure `request` and delegate to the other overload.
         def query(request: Json): F[Either[Json, Json]] = {
           val queryString   = queryStringLens.getOption(request)
@@ -86,7 +90,7 @@ object SangriaGraphQL {
         // Parse `query` and execute.
         def query(query: String, operationName: Option[String], variables: JsonObject): F[Either[Json, Json]] =
           QueryParser.parse(query)  match {
-            case Success(ast)                       => exec(schema, userContext, ast, operationName, variables)(blockingExecutionContext)
+            case Success(ast)                       => exec(schema, userContext, ast, operationName, variables)
             case Failure(e @ SyntaxError(_, _, pe)) => fail(formatSyntaxError(e))
             case Failure(e)                         => fail(formatThrowable(e))
           }
@@ -102,9 +106,12 @@ object SangriaGraphQL {
           query:         Document,
           operationName: Option[String],
           variables:     JsonObject
-        ): F[Either[Json, Json]] =
-          userContext.flatMap { ctx =>
-            F.async { (cb: Either[Throwable, Json] => Unit) =>
+        ): F[Either[Json, Json]] = {
+          implicit val ec = blockingEc
+
+          val e = for {
+            ctx <- userContext
+            result <- Async[F].fromFuture { Async[F].pure {
               Executor.execute(
                 schema           = schema,
                 deferredResolver = deferredResolver,
@@ -113,18 +120,18 @@ object SangriaGraphQL {
                 variables        = Json.fromJsonObject(variables),
                 operationName    = operationName,
                 exceptionHandler = ExceptionHandler {
-                  case (_, e) ⇒ HandledException(e.getMessage)
+                  case (_, e) => HandledException(e.getMessage)
                 }
-              )(scala.concurrent.).onComplete {
-                case Success(value) => cb(Right(value))
-                case Failure(error) => cb(Left(error))
-              }
-            }
-          } .attempt.flatMap {
+              )
+            } }
+          } yield result
+
+          e.attempt.flatMap {
             case Right(json)               => F.pure(json.asRight)
             case Left(err: WithViolations) => fail(formatWithViolations(err))
             case Left(err)                 => fail(formatThrowable(err))
           }
+        }
 
       }
     }
